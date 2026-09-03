@@ -4,11 +4,11 @@ fullnameOverride: ""
 images:
   frontend:
     repository: ghcr.io/peterborovicka/k8s-production-demo-frontend
-    tag: "0.1.0"
+    tag: "4d516867316e0419735d542c5de076f2185e3c6a"
     pullPolicy: IfNotPresent
   backend:
     repository: ghcr.io/peterborovicka/k8s-production-demo-backend
-    tag: "0.1.0"
+    tag: "4d516867316e0419735d542c5de076f2185e3c6a"
     pullPolicy: IfNotPresent
 
 imagePullSecrets: []
