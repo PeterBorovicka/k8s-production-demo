@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["images", "frontend", "backend", "config", "secret", "service", "ingress"],
+  "properties": {
+    "images": {
+      "type": "object",
+      "required": ["frontend", "backend"],
+      "properties": {
+        "frontend": {"$ref": "#/definitions/image"},
+        "backend": {"$ref": "#/definitions/image"}
+      }
+    },
+    "frontend": {"$ref": "#/definitions/workload"},
+    "backend": {"$ref": "#/definitions/workload"},
+    "config": {
+      "type": "object",
+      "required": ["appEnv", "message"],
+      "properties": {
+        "appEnv": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "secret": {
+      "type": "object",
+      "required": ["create", "existingSecret", "key"],
+      "properties": {
+        "create": {"type": "boolean"},
+        "existingSecret": {"type": "string", "minLength": 1},
+        "key": {"type": "string", "minLength": 1},
+        "value": {"type": "string"}
+      }
+    },
+    "service": {
+      "type": "object",
+      "required": ["frontendPort", "backendPort"],
+      "properties": {
+        "frontendPort": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "backendPort": {"type": "integer", "minimum": 1, "maximum": 65535}
+      }
+    },
+    "ingress": {"type": "object"},
+    "autoscaling": {"type": "object"},
+    "podDisruptionBudget": {"type": "object"},
+    "networkPolicy": {"type": "object"},
+    "rbac": {"type": "object"},
+    "serviceMonitor": {"type": "object"},
+    "alerts": {"type": "object"}
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1},
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "workload": {
+      "type": "object",
+      "required": ["replicaCount", "resources"],
+      "properties": {
+        "replicaCount": {"type": "integer", "minimum": 1},
+        "resources": {"type": "object"}
+      }
+    }
+  }
+}
+

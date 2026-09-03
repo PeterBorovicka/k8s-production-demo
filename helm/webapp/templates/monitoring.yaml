@@ -1,0 +1,60 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "webapp.fullname" . }}-backend
+  labels:
+    {{- include "webapp.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "webapp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}
+{{- if .Values.alerts.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "webapp.fullname" . }}
+  labels:
+    {{- include "webapp.labels" . | nindent 4 }}
+    {{- with .Values.alerts.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: webapp.availability
+      rules:
+        - alert: WebAppBackendTargetDown
+          expr: min(up{namespace={{ .Release.Namespace | quote }},service={{ printf "%s-backend" (include "webapp.fullname" .) | quote }}}) < 1 or absent(up{namespace={{ .Release.Namespace | quote }},service={{ printf "%s-backend" (include "webapp.fullname" .) | quote }}})
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "Backend Prometheus target is down"
+            description: "At least one backend scrape target has been unavailable for five minutes."
+        - alert: WebAppDeploymentUnavailable
+          expr: max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace={{ .Release.Namespace | quote }},deployment=~{{ printf "%s-(frontend|backend)" (include "webapp.fullname" .) | quote }}}) < max by (namespace, deployment) (kube_deployment_spec_replicas{namespace={{ .Release.Namespace | quote }},deployment=~{{ printf "%s-(frontend|backend)" (include "webapp.fullname" .) | quote }}})
+          for: 10m
+          labels: {severity: warning}
+          annotations:
+            summary: "Webapp deployment has unavailable replicas"
+            description: "A frontend or backend Deployment has had fewer available than desired replicas for ten minutes."
+    - name: webapp.errors
+      rules:
+        - alert: WebAppBackendHighErrorRate
+          expr: (sum(rate(webapp_http_requests_total{namespace={{ .Release.Namespace | quote }},code=~"5.."}[5m])) / sum(rate(webapp_http_requests_total{namespace={{ .Release.Namespace | quote }}}[5m])) > {{ .Values.alerts.errorRateThreshold }}) and (sum(rate(webapp_http_requests_total{namespace={{ .Release.Namespace | quote }}}[5m])) > {{ .Values.alerts.minimumRequestRate }})
+          for: 10m
+          labels: {severity: warning}
+          annotations:
+            summary: "Backend HTTP 5xx rate is high"
+            description: "The 5xx ratio exceeded the configured threshold for ten minutes while request traffic was above the minimum rate."
+{{- end }}

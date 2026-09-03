@@ -1,0 +1,10 @@
+.git
+.github
+argocd
+cluster
+docs
+helm
+monitoring
+scripts
+README.md
+

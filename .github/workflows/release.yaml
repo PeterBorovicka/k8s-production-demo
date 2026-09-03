@@ -1,0 +1,90 @@
+name: Build, package and GitOps update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - scripts/update_chart.py
+      - .github/workflows/release.yaml
+
+concurrency:
+  group: webapp-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-package-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.2.4
+      - name: Test
+        working-directory: backend
+        run: go test -race ./...
+      - name: Define immutable image coordinates
+        id: image
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "tag=${GITHUB_SHA}" >>"${GITHUB_OUTPUT}"
+          echo "frontend=ghcr.io/${owner}/k8s-production-demo-frontend" >>"${GITHUB_OUTPUT}"
+          echo "backend=ghcr.io/${owner}/k8s-production-demo-backend" >>"${GITHUB_OUTPUT}"
+          echo "chart_registry=oci://ghcr.io/${owner}/charts" >>"${GITHUB_OUTPUT}"
+      - name: Authenticate to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${GH_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+          echo "${GH_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+      - name: Build and push both images
+        env:
+          FRONTEND_IMAGE: ${{ steps.image.outputs.frontend }}
+          BACKEND_IMAGE: ${{ steps.image.outputs.backend }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          docker build --pull -t "${FRONTEND_IMAGE}:${IMAGE_TAG}" frontend
+          docker build --pull -t "${BACKEND_IMAGE}:${IMAGE_TAG}" backend
+          docker push "${FRONTEND_IMAGE}:${IMAGE_TAG}"
+          docker push "${BACKEND_IMAGE}:${IMAGE_TAG}"
+      - name: Update and package Helm chart
+        id: chart
+        env:
+          FRONTEND_IMAGE: ${{ steps.image.outputs.frontend }}
+          BACKEND_IMAGE: ${{ steps.image.outputs.backend }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          chart_version="$(python3 scripts/update_chart.py \
+            --frontend-repository "${FRONTEND_IMAGE}" \
+            --backend-repository "${BACKEND_IMAGE}" \
+            --tag "${IMAGE_TAG}")"
+          helm lint helm/webapp
+          mkdir -p dist
+          helm package helm/webapp --destination dist
+          echo "version=${chart_version}" >>"${GITHUB_OUTPUT}"
+      - name: Publish Helm OCI package
+        env:
+          CHART_REGISTRY: ${{ steps.image.outputs.chart_registry }}
+          CHART_VERSION: ${{ steps.chart.outputs.version }}
+        run: helm push "dist/webapp-${CHART_VERSION}.tgz" "${CHART_REGISTRY}"
+      - name: Commit GitOps desired state
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add helm/webapp/Chart.yaml helm/webapp/values.yaml
+          git commit -m "chore(release): deploy ${IMAGE_TAG} [skip ci]"
+          git push origin HEAD:main

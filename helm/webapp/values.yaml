@@ -1,0 +1,98 @@
+nameOverride: ""
+fullnameOverride: ""
+
+images:
+  frontend:
+    repository: ghcr.io/peterborovicka/k8s-production-demo-frontend
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  backend:
+    repository: ghcr.io/peterborovicka/k8s-production-demo-backend
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+frontend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+backend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 300m
+      memory: 128Mi
+
+config:
+  appEnv: production
+  message: "Hello from a secure Kubernetes deployment"
+
+secret:
+  create: false
+  existingSecret: webapp-secrets
+  key: api-key
+  # Development only. Keep create=false and provision existingSecret externally in production.
+  value: ""
+
+service:
+  frontendPort: 80
+  backendPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  host: k8s-demo.local
+  tls:
+    enabled: false
+    secretName: webapp-tls
+
+autoscaling:
+  enabled: true
+  frontend:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  backend:
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+  monitoringNamespace: monitoring
+
+rbac:
+  create: true
+  readOnlyGroup: webapp-viewers
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels:
+    release: monitoring
+
+alerts:
+  enabled: true
+  labels:
+    release: monitoring
+  errorRateThreshold: 0.05
+  minimumRequestRate: 0.1

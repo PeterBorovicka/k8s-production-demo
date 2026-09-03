@@ -1,0 +1,36 @@
+# Example overlay. Replace the remaining example values for the target platform.
+images:
+  frontend:
+    repository: ghcr.io/peterborovicka/k8s-production-demo-frontend
+    tag: "replace-with-immutable-tag"
+    pullPolicy: IfNotPresent
+  backend:
+    repository: ghcr.io/peterborovicka/k8s-production-demo-backend
+    tag: "replace-with-immutable-tag"
+    pullPolicy: IfNotPresent
+
+frontend:
+  replicaCount: 3
+  resources:
+    requests: {cpu: 100m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+backend:
+  replicaCount: 3
+  resources:
+    requests: {cpu: 100m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+ingress:
+  host: app.example.com
+  tls:
+    enabled: true
+    secretName: webapp-tls
+
+autoscaling:
+  frontend: {minReplicas: 3, maxReplicas: 10, targetCPUUtilizationPercentage: 65, targetMemoryUtilizationPercentage: 75}
+  backend: {minReplicas: 3, maxReplicas: 12, targetCPUUtilizationPercentage: 65, targetMemoryUtilizationPercentage: 75}
+
+secret:
+  create: false
+  existingSecret: webapp-secrets

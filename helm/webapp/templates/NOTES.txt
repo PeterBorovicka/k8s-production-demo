@@ -1,0 +1,9 @@
+1. Add this local hostname entry:
+   127.0.0.1 {{ .Values.ingress.host }}
+
+2. Open the application:
+   {{ if .Values.ingress.tls.enabled }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}
+
+3. Check workloads:
+   kubectl -n {{ .Release.Namespace }} get deploy,pod,svc,ingress,hpa,pdb
+

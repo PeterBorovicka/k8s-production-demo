@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.2.4
+      - name: Backend tests
+        working-directory: backend
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: Chart update tests
+        run: python3 -m unittest scripts/test_update_chart.py
+      - name: Helm lint and render
+        run: |
+          helm lint helm/webapp
+          helm template webapp helm/webapp --namespace webapp >/tmp/webapp-rendered.yaml
+      - name: Build images without publishing
+        run: |
+          docker build -t webapp-backend:ci backend
+          docker build -t webapp-frontend:ci frontend

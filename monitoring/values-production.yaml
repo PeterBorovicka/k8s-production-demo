@@ -1,0 +1,34 @@
+# Example HA/persistent overlay. Set storageClassName for the target cloud.
+alertmanager:
+  alertmanagerSpec:
+    replicas: 2
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: change-me
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 10Gi}
+
+prometheus:
+  prometheusSpec:
+    replicas: 2
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: change-me
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 50Gi}
+
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  persistence:
+    enabled: true
+    storageClassName: change-me
+    size: 10Gi
+
