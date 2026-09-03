@@ -1,0 +1,7 @@
+.idea/
+.vscode/
+.DS_Store
+dist/
+coverage.out
+__pycache__/
+*.py[cod]
