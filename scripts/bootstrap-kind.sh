@@ -18,6 +18,7 @@ fi
 
 kubectl config use-context "kind-${cluster_name}"
 kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/tigera-operator.yaml"
+kubectl wait --for=create crd/installations.operator.tigera.io --timeout=180s
 kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=180s
 kubectl apply -f cluster/calico-custom-resources.yaml
 kubectl wait --for=condition=Ready nodes --all --timeout=600s
